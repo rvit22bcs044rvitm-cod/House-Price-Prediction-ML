@@ -29,24 +29,27 @@ with col2:
     quality = st.slider("Neighborhood Quality (1-10)", 1.0, 10.0, 5.0)
 
 if st.button("Predict Price"):
-    # Verified Order: [SqFt, Beds, Baths, Year, Lot, Garage, Quality]
+    # 1. Verification of Order
     features = np.array([[sqft, beds, baths, year, lot, garage, quality]])
     
-    # 1. Scale
+    # 2. Scale
     scaled_features = scaler.transform(features)
     
-    # 2. Predict
+    # 3. Predict
     prediction = model.predict(scaled_features)
-    
-    # 3. LOGIC CHECK: 
-    # If the number is still huge with expm1, your model might not need it.
-    # Let's try to see if the raw prediction is the actual price.
-    
     raw_val = prediction[0]
     
-    if raw_val < 50: # This means it's likely a LOG value (like 12.5)
+    # --- LOGIC SELECTION ---
+    # If raw_val is small (like 5.0), it's a LOG. If it's huge (500,000), it's RAW.
+    if raw_val < 30: 
         final_price = np.expm1(raw_val)
-    else: # This means it's already the real price (like 250000.0)
+    else:
         final_price = raw_val
+
+    # 4. Show Result
+    st.success(f"### Estimated Market Value: ${final_price:,.2f}")
     
-    st.success(f"The estimated house price is: ${final_price:,.2f}")
+    # 5. DEBUG (Remove this after it works)
+    with st.expander("See Model Debugging Info"):
+        st.write(f"Raw Model Output: {raw_val}")
+        st.write(f"Scaled Inputs: {scaled_features}")
