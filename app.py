@@ -29,19 +29,24 @@ with col2:
     quality = st.slider("Neighborhood Quality (1-10)", 1.0, 10.0, 5.0)
 
 if st.button("Predict Price"):
-    # CRITICAL: Order MUST match your verified list:
-    # [Square_Footage, Num_Bedrooms, Num_Bathrooms, Year_Built, Lot_Size, Garage_Size, Neighborhood_Quality]
+    # Verified Order: [SqFt, Beds, Baths, Year, Lot, Garage, Quality]
     features = np.array([[sqft, beds, baths, year, lot, garage, quality]])
     
-    # 1. Scale the features (Model was trained on scaled data)
+    # 1. Scale
     scaled_features = scaler.transform(features)
     
-    # 2. Predict (This gives the LOG price if you used log1p during training)
+    # 2. Predict
     prediction = model.predict(scaled_features)
     
-    # 3. Inverse Log Transformation
-    # If your price is still 'odd', it means your model wasn't trained on log values.
-    # In that case, change the line below to: final_price = prediction[0]
-    final_price = np.expm1(prediction)[0]
+    # 3. LOGIC CHECK: 
+    # If the number is still huge with expm1, your model might not need it.
+    # Let's try to see if the raw prediction is the actual price.
+    
+    raw_val = prediction[0]
+    
+    if raw_val < 50: # This means it's likely a LOG value (like 12.5)
+        final_price = np.expm1(raw_val)
+    else: # This means it's already the real price (like 250000.0)
+        final_price = raw_val
     
     st.success(f"The estimated house price is: ${final_price:,.2f}")
