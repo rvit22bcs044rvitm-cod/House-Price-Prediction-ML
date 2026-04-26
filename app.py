@@ -3,68 +3,45 @@ import pandas as pd
 import numpy as np
 import pickle
 
-# --- 1. PAGE CONFIG ---
-st.set_page_config(page_title="House Price Predictor", page_icon="🏡", layout="centered")
-
-# --- 2. LOAD ASSETS ---
-@st.cache_resource
-def load_assets():
-    # Ensure these names match your GitHub files exactly
+# Load assets
+# Using try-except to catch loading errors early
+try:
     model = pickle.load(open('house_model.pkl', 'rb'))
     scaler = pickle.load(open('scaler.pkl', 'rb'))
-    return model, scaler
+except FileNotFoundError:
+    st.error("Model or Scaler file not found. Check your GitHub filenames!")
 
-try:
-    model, scaler = load_assets()
-except Exception as e:
-    st.error(f"Error loading model/scaler: {e}")
-    st.stop()
+st.title("🏡 House Price Predictor")
+st.write("Enter the details below to estimate the house value.")
 
-# --- 3. UI/SIDEBAR ---
-st.sidebar.title("Project Details")
-st.sidebar.info("""
-**Type:** Regression  
-**Model:** Linear Regression  
-**R² Score:** 0.94  
-**Status:** Internship Submission
-""")
-
-st.title("🏡 Real Estate Price Estimator")
-st.markdown("Enter property details below to get an AI-driven valuation.")
-st.divider()
-
-# --- 4. USER INPUTS ---
 col1, col2 = st.columns(2)
 
 with col1:
-    sqft = st.number_input("Square Footage", min_value=100.0, value=1500.0, step=50.0, format="%.2f")
-    beds = st.number_input("Number of Bedrooms", min_value=1, value=3, step=1)
-    baths = st.number_input("Number of Bathrooms", min_value=1.0, value=2.0, step=0.5, format="%.1f")
-    year = st.number_input("Year Built", min_value=1800, max_value=2026, value=2010, step=1)
+    # Use 0.0 to force float type as per instructor feedback
+    sqft = st.number_input("Square Footage", min_value=100.0, value=1500.0)
+    beds = st.number_input("Number of Bedrooms", min_value=1.0, value=3.0)
+    baths = st.number_input("Number of Bathrooms", min_value=1.0, value=2.0)
+    year = st.number_input("Year Built", min_value=1800.0, max_value=2026.0, value=2015.0)
 
 with col2:
-    lot = st.number_input("Lot Size (sq ft)", min_value=100.0, value=5000.0, step=100.0, format="%.2f")
-    garage = st.number_input("Garage Size (Cars)", min_value=0, value=2, step=1)
-    quality = st.select_slider("Neighborhood Quality", options=list(range(1, 11)), value=5)
+    lot = st.number_input("Lot Size (sq ft)", min_value=100.0, value=5000.0)
+    garage = st.number_input("Garage Size (Cars)", min_value=0.0, value=2.0)
+    quality = st.slider("Neighborhood Quality (1-10)", 1.0, 10.0, 5.0)
 
-st.divider()
-
-# --- 5. PREDICTION LOGIC ---
-if st.button("Calculate Estimated Price", use_container_width=True):
-    # CRITICAL: Order must match your print(list(X.columns)) result:
-    # ['Square_Footage', 'Num_Bedrooms', 'Num_Bathrooms', 'Year_Built', 'Lot_Size', 'Garage_Size', 'Neighborhood_Quality']
+if st.button("Predict Price"):
+    # CRITICAL: Order MUST match your verified list:
+    # [Square_Footage, Num_Bedrooms, Num_Bathrooms, Year_Built, Lot_Size, Garage_Size, Neighborhood_Quality]
     features = np.array([[sqft, beds, baths, year, lot, garage, quality]])
     
-    # 1. Scale input
+    # 1. Scale the features (Model was trained on scaled data)
     scaled_features = scaler.transform(features)
     
-    # 2. Predict (This returns LOG value)
-    log_pred = model.predict(scaled_features)
+    # 2. Predict (This gives the LOG price if you used log1p during training)
+    prediction = model.predict(scaled_features)
     
-    # 3. Inverse Log (Using expm1 because you used log1p in training)
-    final_price = np.expm1(log_pred)[0]
+    # 3. Inverse Log Transformation
+    # If your price is still 'odd', it means your model wasn't trained on log values.
+    # In that case, change the line below to: final_price = prediction[0]
+    final_price = np.expm1(prediction)[0]
     
-    # 4. Result Presentation
-    st.balloons()
-    st.success(f"### Estimated Market Value: ${final_price:,.2f}")
-    st.caption("Valuation generated based on historical training data distribution.")
+    st.success(f"The estimated house price is: ${final_price:,.2f}")
