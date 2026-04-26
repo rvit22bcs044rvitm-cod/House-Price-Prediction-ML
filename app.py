@@ -29,27 +29,25 @@ with col2:
     quality = st.slider("Neighborhood Quality (1-10)", 1.0, 10.0, 5.0)
 
 if st.button("Predict Price"):
-    # 1. Verification of Order
+    # Verified Order
     features = np.array([[sqft, beds, baths, year, lot, garage, quality]])
     
-    # 2. Scale
+    # 1. Scale
     scaled_features = scaler.transform(features)
     
-    # 3. Predict
+    # 2. Predict
     prediction = model.predict(scaled_features)
     raw_val = prediction[0]
     
-    # --- LOGIC SELECTION ---
-    # If raw_val is small (like 5.0), it's a LOG. If it's huge (500,000), it's RAW.
-    if raw_val < 30: 
+    # 3. Logic based on your debug screenshot (165.12)
+    # If the raw value is around 100-500, it's in 'Thousands'
+    if 50 < raw_val < 2000: 
+        final_price = raw_val * 1000
+    # If the raw value is tiny (under 25), it was a LOG
+    elif raw_val < 25:
         final_price = np.expm1(raw_val)
+    # If it's already huge, keep it as is
     else:
         final_price = raw_val
-
-    # 4. Show Result
-    st.success(f"### Estimated Market Value: ${final_price:,.2f}")
     
-    # 5. DEBUG (Remove this after it works)
-    with st.expander("See Model Debugging Info"):
-        st.write(f"Raw Model Output: {raw_val}")
-        st.write(f"Scaled Inputs: {scaled_features}")
+    st.success(f"### Estimated Market Value: ${final_price:,.2f}")
